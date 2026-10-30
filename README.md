@@ -1,6 +1,6 @@
 <div align="center">
 
-# pay API Gateway
+# Pay API Gateway
 
 **The single public entry point for pay services — routing, edge security, rate limiting and resilience.**
 
