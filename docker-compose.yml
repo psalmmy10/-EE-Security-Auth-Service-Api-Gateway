@@ -1,0 +1,40 @@
+# Local full stack: gateway (public) -> auth service (internal) -> Postgres.
+# Expects the auth service repo next to this one:  ../EE-Security-Auth-Service
+#   docker compose up --build      then call http://localhost:8000
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pay_auth
+      POSTGRES_USER: pay_auth
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pay_auth}
+    volumes: [ "auth-pgdata:/var/lib/postgresql/data" ]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pay_auth -d pay_auth"]
+      interval: 5s
+      retries: 10
+
+  auth-service:
+    build: ../EE-Security-Auth-Service
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:postgresql://postgres:5432/pay_auth
+      DB_USERNAME: pay_auth
+      DB_PASSWORD: ${DB_PASSWORD:-pay_auth}
+      KEY_SOURCE: ephemeral
+    # no "ports:" — only reachable through the gateway (and from this Docker network)
+
+  gateway:
+    build: .
+    depends_on: [ auth-service ]
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SERVER_PORT: 8000
+      AUTH_SERVICE_URI: http://auth-service:8080
+    ports:
+      - "8000:8000"
+
+volumes:
+  auth-pgdata:
